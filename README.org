@@ -1,0 +1,8 @@
+#+TITLE: Readme
+
+* Project Structure
+- src
+  - main.rs
+  - bin/
+    - day1/
+      - main.rs
