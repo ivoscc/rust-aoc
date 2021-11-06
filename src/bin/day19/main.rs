@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
+
+use itertools::Itertools;
+use regex::{Captures, Regex};
 
 fn main() {
     let input = include_str!("input.txt");
@@ -7,7 +10,7 @@ fn main() {
     let output_part_2 = part_2(input);
     println!("Part 2 output is {:?}", output_part_2);
     assert_eq!(576, output_part_1);
-    // assert_eq!(_, output_part_2);
+    assert_eq!(207, output_part_2);
 }
 
 fn parse_input(input: &str) -> (HashMap<String, Vec<String>>, String) {
@@ -53,67 +56,41 @@ fn part_1(input: &str) -> usize {
     seen.len()
 }
 
-fn get_all_possible_mutations(
-    molecule: &String,
-    transformations: &HashMap<String, Vec<String>>,
-) -> HashSet<String> {
-    let mut seen = HashSet::new();
-    for (source, possible_transformations) in transformations {
-        for (index, source_match) in molecule.match_indices(source) {
-            for transformation in possible_transformations.iter() {
-                let mutated_molecule =
-                    transform_string(&molecule, index, source_match.len(), &transformation);
-                seen.insert(mutated_molecule);
-            }
+fn parse_input_into_reverse_map(input: &str) -> (HashMap<String, String>, String) {
+    let mut map = HashMap::new();
+    let mut molecule = String::from("");
+    for line in input.lines() {
+        let line_parts: Vec<&str> = line.split(" ").collect();
+
+        if line_parts.len() == 0 {
+            continue;
+        }
+        if line_parts.len() == 3 {
+            map.insert(line_parts[2].to_string(), line_parts[0].to_string());
+        } else {
+            molecule = line.to_string();
         }
     }
-    seen
+    (map, molecule)
 }
 
-type LeveledString = (usize, String);
-
+// BFS was too slow here
 fn part_2(input: &str) -> usize {
-    let (transformations, target_molecule) = parse_input(input);
-    let starting_molecule = "e";
-    let mut queue: VecDeque<LeveledString> = VecDeque::new();
-    queue.push_front((1, starting_molecule.to_string()));
-    let mut seen: HashSet<String> = HashSet::new();
-    let mut max_len = 0;
+    let (transformations, starting_molecule) = parse_input_into_reverse_map(input);
+    let target_molecule = "e";
+    let mut molecule: String = starting_molecule.clone();
+    let mut steps = 0;
+    let regex: String = transformations.keys().join("|");
+    let re: Regex = Regex::new(&regex).unwrap();
 
-    while queue.len() > 0 {
-        let (level, molecule) = queue.pop_back().unwrap();
-        for mutation in get_all_possible_mutations(&molecule, &transformations) {
-            if seen.contains(&mutation) || mutation.len() > target_molecule.len() {
-                continue;
-            }
-            if mutation.len() > max_len {
-                max_len = mutation.len();
-            }
-
-            if mutation.len() == target_molecule.len() && mutation == target_molecule {
-                return level;
-            }
-            // println!("Mutation = {}", mutation);
-            seen.insert(mutation.clone());
-            queue.push_front((level + 1, mutation));
-            // if seen.len() % 10000 == 0 {
-            //     println!(
-            //         "Queue is of size {}. Seen strings = {}. Largest {} (target = {})",
-            //         queue.len(),
-            //         seen.len(),
-            //         max_len,
-            //         target_molecule.len()
-            //     );
-            // }
-            if queue.len() % 10 == 0 {
-                println!(
-                    "Queue is of size {}. Largest {} (target = {})",
-                    queue.len(),
-                    max_len,
-                    target_molecule.len()
-                );
-            }
-        }
+    while molecule != target_molecule {
+        molecule = re
+            .replace_all(&molecule, |caps: &Captures| {
+                steps += 1;
+                transformations.get(&caps[0]).unwrap()
+            })
+            .to_string();
     }
-    0
+
+    steps
 }
